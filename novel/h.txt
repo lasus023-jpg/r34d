@@ -1,9 +1,0 @@
-1. Struktur File repo ini di GitHub
-Agar kode ini bekerja otomatis, susun folder Anda seperti ini:
-/index.html (File utama)
-/novel/ (Folder utama novel)
-/Solo-Leveling/
-Solo-Leveling_Bab-01.txt
-Solo-Leveling_Bab-02.txt
-/Overgeared/
-Overgeared_Bab-01.txt
