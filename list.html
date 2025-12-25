@@ -38,6 +38,7 @@
             border-bottom: 2px solid var(--border-color); 
             margin-bottom: 20px; 
             padding-bottom: 10px;
+            position: sticky;
         }
 
         #controls { 
@@ -134,7 +135,7 @@
     // 2. AMBIL DAFTAR BAB
     async function fetchChapters() {
         if (!currentNovel) {
-            contentDiv.innerHTML = "Novel tidak ditentukan. Kembali ke <a href='list.html'>Perpustakaan</a>.";
+            contentDiv.innerHTML = "Novel tidak ditentukan. Kembali ke <a href='index.html'>Perpustakaan</a>.";
             return;
         }
 
@@ -204,3 +205,4 @@
 
 </body>
   </html>
+
