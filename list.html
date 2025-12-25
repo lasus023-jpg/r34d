@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library | Novel Vault</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f4f9; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        h1 { color: #2c3e50; margin-bottom: 30px; }
+        #novel-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; width: 100%; max-width: 1000px; }
+        .novel-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; transition: transform 0.2s; cursor: pointer; text-decoration: none; color: inherit; display: flex; flex-direction: column; justify-content: center; min-height: 120px; }
+        .novel-card:hover { transform: translateY(-5px); border: 2px solid #3498db; }
+        .novel-card h3 { margin: 0; font-size: 1.2rem; color: #34495e; }
+        .loading { font-style: italic; color: #888; }
+    </style>
+</head>
+<body>
+
+    <h1>📚 Novel Vault Library</h1>
+
+    <div id="novel-list">
+        <p class="loading">Memindai rak buku...</p>
+    </div>
+
+<script>
+    // --- SESUAIKAN DENGAN CONFIG DI INDEX.HTML ---
+    const CONFIG = {
+        username: "USER_GITHUB_ANDA",
+        repo: "NAMA_REPO_ANDA",
+        folder: "Novels"
+    };
+
+    async function scanLibrary() {
+        const listContainer = document.getElementById('novel-list');
+        const url = `https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/${CONFIG.folder}`;
+
+        try {
+            const response = await fetch(url);
+            const items = await response.json();
+
+            // Filter hanya item yang bertipe 'dir' (folder)
+            const folders = items.filter(item => item.type === 'dir');
+
+            listContainer.innerHTML = ''; // Hapus pesan loading
+
+            if (folders.length === 0) {
+                listContainer.innerHTML = '<p>Belum ada folder novel di dalam folder /Novels/</p>';
+                return;
+            }
+
+            folders.forEach(folder => {
+                const card = document.createElement('a');
+                card.className = 'novel-card';
+                // Link akan mengarah ke index.html dengan parameter nama folder
+                card.href = `index.html?novel=${folder.name}`;
+                
+                // Menampilkan nama folder (mengganti "-" dengan spasi)
+                const displayName = folder.name.replace(/-/g, ' ');
+                card.innerHTML = `<h3>${displayName}</h3>`;
+                
+                listContainer.appendChild(card);
+            });
+
+        } catch (error) {
+            console.error(error);
+            listContainer.innerHTML = '<p>Gagal memuat daftar novel. Pastikan repository publik dan config benar.</p>';
+        }
+    }
+
+    scanLibrary();
+</script>
+
+</body>
+</html>
