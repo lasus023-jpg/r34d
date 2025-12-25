@@ -54,7 +54,8 @@
 
     // 1. Ambil daftar file dari GitHub API
     async function fetchChapters() {
-        const url = `https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/${CONFIG.folder}/${currentNovel}`;
+        const url = `https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/ 
+        <!-- ${CONFIG.folder}/${currentNovel}`--> ;
         
         try {
             const response = await fetch(url);
