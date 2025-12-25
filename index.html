@@ -1,1 +1,206 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novel Vault</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --text-color: #333;
+            --card-bg: white;
+            --border-color: #ddd;
+            --accent-color: #3498db;
+        }
 
+        /* Dark Mode Colors */
+        body.dark-mode {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --card-bg: #2d2d2d;
+            --border-color: #444;
+            --accent-color: #5dade2;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Merriweather, Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.8; 
+            max-width: 850px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: var(--bg-color); 
+            color: var(--text-color);
+            transition: background 0.3s, color 0.3s;
+        }
+
+        header { 
+            text-align: center; 
+            border-bottom: 2px solid var(--border-color); 
+            margin-bottom: 20px; 
+            padding-bottom: 10px;
+        }
+
+        #controls { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            margin-bottom: 20px; 
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        select, button { 
+            padding: 10px 15px; 
+            cursor: pointer; 
+            border-radius: 5px; 
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-color);
+        }
+
+        button:hover { background: var(--accent-color); color: white; }
+
+        #content { 
+            background: var(--card-bg); 
+            padding: 40px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2); 
+            min-height: 400px; 
+            white-space: pre-wrap; /* Menjaga format baris dari file txt */
+            font-size: 1.1rem;
+        }
+
+        .btn-theme { font-size: 1.2rem; }
+        .loading { font-style: italic; color: #888; text-align: center; width: 100%; }
+        
+        @media (max-width: 600px) {
+            #content { padding: 20px; font-size: 1rem; }
+        }
+    </style>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather&family=Inter&family=Roboto+Mono&display=swap" rel="stylesheet">
+    
+    
+    
+</head>
+<body class="">
+
+<header>
+    <h1 id="novel-title">Novel Vault</h1>
+    <p id="chapter-label">Memuat Perpustakaan...</p>
+</header>
+
+<div id="controls">
+    <select id="chapter-select">
+        <option value="">-- Pilih Bab --</option>
+    </select>
+    
+    <div>
+        <button onclick="changeChapter(-1)">Prev</button>
+        <button onclick="changeChapter(1)">Next</button>
+        <button class="btn-theme" onclick="toggleDarkMode()" title="Ganti Tema">🌓</button>
+    </div>
+</div>
+
+<div id="content">Silakan pilih bab untuk mulai membaca...</div>
+
+<script>
+    // --- KONFIGURASI ---
+    const CONFIG = {
+        username: "lasus023-jpg",
+        repo: "r34d",
+        folder: "novel"
+    };
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentNovel = urlParams.get('novel');
+    
+    const chapterSelect = document.getElementById('chapter-select');
+    const contentDiv = document.getElementById('content');
+    const titleHeader = document.getElementById('novel-title');
+
+    // 1. TEMA (DARK MODE)
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+        const isDark = document.body.classList.contains('dark-mode');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    }
+
+    // Cek tema yang tersimpan
+    if (localStorage.getItem('theme') === 'dark') {
+        document.body.classList.add('dark-mode');
+    }
+
+    // 2. AMBIL DAFTAR BAB
+    async function fetchChapters() {
+        if (!currentNovel) {
+            contentDiv.innerHTML = "Novel tidak ditentukan. Kembali ke <a href='list.html'>Perpustakaan</a>.";
+            return;
+        }
+
+        titleHeader.innerText = currentNovel.replace(/-/g, ' ');
+        const url = `https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/${CONFIG.folder}/${currentNovel}`;
+        
+        try {
+            const response = await fetch(url);
+            const files = await response.json();
+            
+            const txtFiles = files
+                .filter(file => file.name.endsWith('.txt'))
+                .sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+
+            chapterSelect.innerHTML = '<option value="">Pilih Bab</option>';
+            txtFiles.forEach(file => {
+                const option = document.createElement('option');
+                option.value = file.download_url;
+                option.text = file.name.replace('.txt', '').replace(/_/g, ' ');
+                chapterSelect.appendChild(option);
+            });
+
+            // Fitur Auto-Resume: Cek apakah ada bab terakhir yang disimpan untuk novel ini
+            const lastBab = localStorage.getItem(`lastRead_${currentNovel}`);
+            if (lastBab) {
+                chapterSelect.value = lastBab;
+                loadChapter(lastBab);
+            }
+
+        } catch (error) {
+            contentDiv.innerText = "Gagal memuat daftar bab.";
+        }
+    }
+
+    // 3. BACA FILE TXT
+    async function loadChapter(url) {
+        if (!url) return;
+        contentDiv.innerHTML = "<div class='loading'>Membuka gulungan kertas...</div>";
+        
+        try {
+            const response = await fetch(url);
+            const text = await response.text();
+            contentDiv.innerText = text;
+            
+            // Simpan bab terakhir yang dibaca
+            localStorage.setItem(`lastRead_${currentNovel}`, url);
+            window.scrollTo(0, 0);
+        } catch (error) {
+            contentDiv.innerText = "Gagal memuat isi bab.";
+        }
+    }
+
+    // Navigasi Bab
+    function changeChapter(direction) {
+        const currentIndex = chapterSelect.selectedIndex;
+        const nextIndex = currentIndex + direction;
+        if (nextIndex >= 1 && nextIndex < chapterSelect.options.length) {
+            chapterSelect.selectedIndex = nextIndex;
+            loadChapter(chapterSelect.value);
+        }
+    }
+
+    chapterSelect.addEventListener('change', (e) => loadChapter(e.target.value));
+
+    fetchChapters();
+</script>
+
+</body>
+  </html>
