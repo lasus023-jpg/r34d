@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h1>Novel dari GitHub</h1>
+<div id="novel-container"></div>
+
+<script>
+// Ganti dengan username, repo, dan folder Anda
+const USERNAME = 'lasus023-jpg';
+const REPO = 'r34d';
+const FOLDER = 'novel'; // atau kosongkan jika di root
+
+async function loadNovels() {
+  const novels = await getGitHubTxtFiles(USERNAME, REPO, FOLDER);
+  const container = document.getElementById('novel-container');
+  
+  if (novels.length === 0) {
+    container.innerHTML = '<p>Tidak ada novel ditemukan.</p>';
+    return;
+  }
+  
+  container.innerHTML = '';
+  
+  novels.forEach(novel => {
+    const novelDiv = document.createElement('div');
+    novelDiv.className = 'novel-item';
+    novelDiv.style.border = '1px solid #ccc';
+    novelDiv.style.margin = '10px';
+    novelDiv.style.padding = '15px';
+    novelDiv.style.borderRadius = '5px';
+    
+    novelDiv.innerHTML = `
+      <h3>📖 ${novel.name.replace('.txt', '')}</h3>
+      <p><strong>Ukuran:</strong> ${novel.size} karakter</p>
+      <div style="max-height: 200px; overflow-y: auto; background: #f5f5f5; padding: 10px;">
+        <pre style="white-space: pre-wrap;">${novel.content.substring(0, 500)}${novel.content.length > 500 ? '...' : ''}</pre>
+      </div>
+      <p>
+        <a href="${novel.url}" target="_blank" style="margin-right: 10px;">👁️ Lihat di GitHub</a>
+        <a href="${novel.downloadUrl}" target="_blank">⬇️ Download</a>
+      </p>
+      <button onclick="showFullContent('${novel.name.replace(/'/g, "\\'")}')">
+        Baca Selengkapnya
+      </button>
+    `;
+    
+    container.appendChild(novelDiv);
+    
+    // Simpan ke localStorage untuk akses cepat
+    localStorage.setItem(`novel_${novel.name}`, novel.content);
+  });
+}
+
+// Fungsi untuk menampilkan konten lengkap
+function showFullContent(novelName) {
+  const content = localStorage.getItem(`novel_${novelName}`);
+  if (content) {
+    const newWindow = window.open();
+    newWindow.document.write(`
+      <html>
+      <head><title>${novelName}</title></head>
+      <body style="font-family: Arial; padding: 20px; max-width: 800px; margin: 0 auto;">
+        <h1>${novelName}</h1>
+        <pre style="white-space: pre-wrap; line-height: 1.6;">${content}</pre>
+        <button onclick="window.print()">🖨️ Print</button>
+      </body>
+      </html>
+    `);
+  }
+}
+
+// Jalankan saat halaman dimuat
+loadNovels();
+</script>
+</body>
+</html>
