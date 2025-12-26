@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<body>
+<div id="txt-files-container"></div>
+
+<script>
+async function loadTxtFiles(folder = 'novel') {
+  try {
+    const response = await fetch(`http://localhost:3000/api/txt-files/${folder}`);
+    const result = await response.json();
+    
+    if (result.success) {
+      const container = document.getElementById('txt-files-container');
+      container.innerHTML = '';
+      
+      result.files.forEach(file => {
+        const div = document.createElement('div');
+        div.className = 'txt-file';
+        div.innerHTML = `
+          <h3>${file.name} (${file.size} karakter)</h3>
+          <pre>${file.content.substring(0, 200)}...</pre>
+          <hr>
+        `;
+        container.appendChild(div);
+      });
+    } else {
+      console.error('Error:', result.error);
+    }
+  } catch (error) {
+    console.error('Fetch error ada kesalahan:', error);
+  }
+}
+
+// Contoh penggunaan
+loadTxtFiles('documents');
+// atau
+loadTxtFiles('novel/files');
+</script>
+</body>
+</html>
