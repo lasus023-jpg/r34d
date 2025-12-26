@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.novel-item { 
+  border: 1px solid #ddd; 
+  margin: 10px 0; 
+  padding: 15px; 
+  border-radius: 8px; 
+  background: white;
+}
+.preview { 
+  max-height: 150px; 
+  overflow: hidden; 
+  position: relative;
+}
+.preview:after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(transparent, white);
+}
+.hidden { display: none; }
+</style>
+</head>
+<body>
+<h1>📚 Koleksi Novel</h1>
+<input type="text" id="search" placeholder="Cari judul novel..." style="width: 300px; padding: 10px; margin: 10px 0;">
+<div id="novel-list"></div>
+<div id="loading">Memuat novel...</div>
+
+<script>
+const CONFIG = {
+  username: 'lasus023-jpg',    // Ganti dengan username GitHub Anda
+  repo: 'r34d',       // Ganti dengan nama repository
+  
+};
+
+const FOLDERS = ['novel', 'novel2', 'novel3']; // Array folder
+
+async function getTxtFilesFromMultipleFolders(username, repo, folders) {
+  const allFiles = [];
+  
+  for (const folder of folders) {
+    console.log(`Membaca folder: ${folder}`);
+    const files = await getGitHubTxtFiles(username, repo, folder);
+    allFiles.push(...files.map(file => ({
+      ...file,
+      folder: folder // Tambahkan info folder asal
+    })));
+  }
+  
+  return allFiles;
+}
+
+// Contoh penggunaan
+async function loadAllNovels() {
+  const novels = await getTxtFilesFromMultipleFolders(
+    USERNAME, 
+    REPO, 
+    ['novel', 'novel2', 'novel3']
+  );
+  
+  console.log(`Total novel: ${novels.length}`);
+  // Tampilkan novel
+}
+
+/*
+async function loadGitHubNovels() {
+  const loading = document.getElementById('loading');
+  const list = document.getElementById('novel-list');
+  
+  try {
+    loading.textContent = 'Sedang mengambil data dari GitHub...';
+    
+    // 1. Dapatkan daftar file dari folder
+    const apiUrl = `https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/${CONFIG.folder}`;
+    const response = await fetch(apiUrl);
+    
+    if (!response.ok) throw new Error(`Gagal mengakses repository`);
+    
+    const files = await response.json();
+    
+   */ 
+    
+    
+    // 2. Filter hanya file .txt
+    const txtFiles = files.filter(file => 
+      file.type === 'file' && file.name.toLowerCase().endsWith('.txt')
+    );
+    
+    if (txtFiles.length === 0) {
+      list.innerHTML = '<p>Tidak ada file novel (.txt) ditemukan.</p>';
+      loading.classList.add('hidden');
+      return;
+    }
+    
+    // 3. Tampilkan daftar novel
+    list.innerHTML = '';
+    
+    for (const file of txtFiles) {
+      const item = document.createElement('div');
+      item.className = 'novel-item';
+      item.dataset.name = file.name.toLowerCase();
+      
+      // Tampilkan dulu tanpa konten
+      item.innerHTML = `
+        <h3>${file.name.replace('.txt', '')}</h3>
+        <div class="preview" id="preview-${file.name}">
+          <em>Memuat konten...</em>
+        </div>
+        <button onclick="loadNovelContent('${file.download_url}', '${file.name}')">
+          📖 Baca Novel
+        </button>
+        <a href="${file.html_url}" target="_blank" style="margin-left: 10px;">
+          🔗 GitHub
+        </a>
+      `;
+      
+      list.appendChild(item);
+      
+      // Load konten di background
+      loadNovelPreview(file.download_url, file.name);
+    }
+    
+    loading.classList.add('hidden');
+    
+    // 4. Setup search
+    document.getElementById('search').addEventListener('input', function(e) {
+      const searchTerm = e.target.value.toLowerCase();
+      const items = document.querySelectorAll('.novel-item');
+      
+      items.forEach(item => {
+        const name = item.dataset.name;
+        if (name.includes(searchTerm)) {
+          item.classList.remove('hidden');
+        } else {
+          item.classList.add('hidden');
+        }
+      });
+    });
+    
+  } catch (error) {
+    loading.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+    console.error(error);
+  }
+}
+
+// Fungsi untuk memuat preview
+async function loadNovelPreview(url, filename) {
+  try {
+    const response = await fetch(url);
+    const content = await response.text();
+    const preview = document.getElementById(`preview-${filename}`);
+    
+    // Ambil 300 karakter pertama
+    const previewText = content.length > 300 
+      ? content.substring(0, 300) + '...' 
+      : content;
+    
+    preview.innerHTML = `<pre style="white-space: pre-wrap;">${previewText}</pre>`;
+    
+    // Simpan di localStorage
+    localStorage.setItem(`novel_${filename}`, content);
+  } catch (error) {
+    console.error(`Gagal memuat ${filename}:`, error);
+  }
+}
+
+// Fungsi untuk membaca novel lengkap
+async function loadNovelContent(url, filename) {
+  let content = localStorage.getItem(`novel_${filename}`);
+  
+  if (!content) {
+    // Jika belum ada di cache, fetch dari GitHub
+    const response = await fetch(url);
+    content = await response.text();
+    localStorage.setItem(`novel_${filename}`, content);
+  }
+  
+  // Buka di tab/window baru
+  const newWindow = window.open('', '_blank');
+  newWindow.document.write(`
+    <html>
+    <head>
+      <title>${filename}</title>
+      <style>
+        body { font-family: Arial; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; }
+        pre { white-space: pre-wrap; }
+        .controls { position: fixed; top: 10px; right: 10px; background: white; padding: 10px; border: 1px solid #ccc; }
+      </style>
+    </head>
+    <body>
+      <div class="controls">
+        <button onclick="window.print()">🖨️ Print</button>
+        <button onclick="window.close()">✖️ Tutup</button>
+      </div>
+      <h1>${filename.replace('.txt', '')}</h1>
+      <pre>${content}</pre>
+    </body>
+    </html>
+  `);
+}
+
+// Jalankan saat halaman dimuat
+loadGitHubNovels();
+</script>
+</body>
+</html>
