@@ -35,6 +35,45 @@ async function loadTxtFiles(folder = 'novel') {
 loadTxtFiles('documents');
 // atau
 loadTxtFiles('novel/files');
+
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const app = express();
+
+// Endpoint untuk membaca file txt dalam folder
+app.get('/api/txt-files/:folder?', (req, res) => {
+  const folder = req.params.folder || 'novel';
+  const folderPath = path.join(__dirname, folder);
+  
+  try {
+    // Baca semua file di folder
+    const files = fs.readdirSync(folderPath);
+    
+    // Filter hanya file .txt
+    const txtFiles = files.filter(file => file.endsWith('.txt'));
+    
+    // Baca isi setiap file .txt
+    const results = txtFiles.map(file => {
+      const content = fs.readFileSync(path.join(folderPath, file), 'utf8');
+      return {
+        name: file,
+        content: content,
+        size: content.length
+      };
+    });
+    
+    res.json({ success: true, files: results });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: 'Folder tidak ditemukan atau tidak dapat diakses' 
+    });
+  }
+});
+
+app.listen(3000, () => console.log('Server running on port 3000'));
+  
 </script>
 </body>
 </html>
