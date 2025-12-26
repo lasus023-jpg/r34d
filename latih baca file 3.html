@@ -1,131 +1,179 @@
 <!DOCTYPE html>
 <html>
+<head>
+<style>
+.novel-item { 
+  border: 1px solid #ddd; 
+  margin: 10px 0; 
+  padding: 15px; 
+  border-radius: 8px; 
+  background: white;
+}
+.preview { 
+  max-height: 150px; 
+  overflow: hidden; 
+  position: relative;
+}
+.preview:after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(transparent, white);
+}
+.hidden { display: none; }
+</style>
+</head>
 <body>
-<div id="txt-files-container"></div>
+<h1>📚 Koleksi Novel</h1>
+<input type="text" id="search" placeholder="Cari judul novel..." style="width: 300px; padding: 10px; margin: 10px 0;">
+<div id="novel-list"></div>
+<div id="loading">Memuat novel...</div>
 
 <script>
+const CONFIG = {
+  username: 'lasus023-jpg',    // Ganti dengan username GitHub Anda
+  repo: 'r34d',       // Ganti dengan nama repository
+  folder: 'novel'               // Ganti dengan nama folder
+};
 
-async function getGitHubTxtFiles(username, repo, folderPath = 'lasus023-jpg, r34d, novel') {
+async function loadGitHubNovels() {
+  const loading = document.getElementById('loading');
+  const list = document.getElementById('novel-list');
+  
   try {
-    // API untuk mendapatkan konten folder
-    const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/${folderPath}`;
+    loading.textContent = 'Sedang mengambil data dari GitHub...';
     
+    // 1. Dapatkan daftar file dari folder
+    const apiUrl = `https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/${CONFIG.folder}`;
     const response = await fetch(apiUrl);
     
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+    if (!response.ok) throw new Error(`Gagal mengakses repository`);
     
-    const contents = await response.json();
+    const files = await response.json();
     
-    // Filter hanya file .txt
-    const txtFiles = contents.filter(item => 
-      item.type === 'file' && item.name.endsWith('.txt')
+    // 2. Filter hanya file .txt
+    const txtFiles = files.filter(file => 
+      file.type === 'file' && file.name.toLowerCase().endsWith('.txt')
     );
     
-    console.log(`Ditemukan ${txtFiles.length} file .txt`);
+    if (txtFiles.length === 0) {
+      list.innerHTML = '<p>Tidak ada file novel (.txt) ditemukan.</p>';
+      loading.classList.add('hidden');
+      return;
+    }
     
-    // Baca isi setiap file .txt
-    const fileContents = [];
+    // 3. Tampilkan daftar novel
+    list.innerHTML = '';
     
     for (const file of txtFiles) {
-      try {
-        const fileResponse = await fetch(file.download_url);
-        if (fileResponse.ok) {
-          const content = await fileResponse.text();
-          fileContents.push({
-            name: file.name,
-            content: content,
-            size: content.length,
-            url: file.html_url,
-            downloadUrl: file.download_url
-          });
-        }
-      } catch (err) {
-        console.error(`Gagal membaca ${file.name}:`, err);
-      }
-    }
-    
-    return fileContents;
-    
-  } catch (error) {
-    console.error('Error accessing GitHub:', error);
-    return [];
-  }
-}
-
-
-  // old function 
-async function loadTxtFiles(folder = 'novel') {
-  try {
-    const response = await fetch(`http://localhost:3000/api/txt-files/${folder}`);
-    const result = await response.json();
-    
-    if (result.success) {
-      const container = document.getElementById('txt-files-container');
-      container.innerHTML = '';
+      const item = document.createElement('div');
+      item.className = 'novel-item';
+      item.dataset.name = file.name.toLowerCase();
       
-      result.files.forEach(file => {
-        const div = document.createElement('div');
-        div.className = 'txt-file';
-        div.innerHTML = `
-          <h3>${file.name} (${file.size} karakter)</h3>
-          <pre>${file.content.substring(0, 200)}...</pre>
-          <hr>
-        `;
-        container.appendChild(div);
-      });
-    } else {
-      console.error('Error:', result.error);
+      // Tampilkan dulu tanpa konten
+      item.innerHTML = `
+        <h3>${file.name.replace('.txt', '')}</h3>
+        <div class="preview" id="preview-${file.name}">
+          <em>Memuat konten...</em>
+        </div>
+        <button onclick="loadNovelContent('${file.download_url}', '${file.name}')">
+          📖 Baca Novel
+        </button>
+        <a href="${file.html_url}" target="_blank" style="margin-left: 10px;">
+          🔗 GitHub
+        </a>
+      `;
+      
+      list.appendChild(item);
+      
+      // Load konten di background
+      loadNovelPreview(file.download_url, file.name);
     }
+    
+    loading.classList.add('hidden');
+    
+    // 4. Setup search
+    document.getElementById('search').addEventListener('input', function(e) {
+      const searchTerm = e.target.value.toLowerCase();
+      const items = document.querySelectorAll('.novel-item');
+      
+      items.forEach(item => {
+        const name = item.dataset.name;
+        if (name.includes(searchTerm)) {
+          item.classList.remove('hidden');
+        } else {
+          item.classList.add('hidden');
+        }
+      });
+    });
+    
   } catch (error) {
-    console.error('Fetch error ada kesalahan:', error);
+    loading.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+    console.error(error);
   }
 }
 
-// Contoh penggunaan
-loadTxtFiles('documents');
-// atau
-loadTxtFiles('novel/files');
-
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const app = express();
-
-// Endpoint untuk membaca file txt dalam folder
-app.get('/api/txt-files/:folder?', (req, res) => {
-  const folder = req.params.folder || 'novel';
-  const folderPath = path.join(__dirname, folder);
-  
+// Fungsi untuk memuat preview
+async function loadNovelPreview(url, filename) {
   try {
-    // Baca semua file di folder
-    const files = fs.readdirSync(folderPath);
+    const response = await fetch(url);
+    const content = await response.text();
+    const preview = document.getElementById(`preview-${filename}`);
     
-    // Filter hanya file .txt
-    const txtFiles = files.filter(file => file.endsWith('.txt'));
+    // Ambil 300 karakter pertama
+    const previewText = content.length > 300 
+      ? content.substring(0, 300) + '...' 
+      : content;
     
-    // Baca isi setiap file .txt
-    const results = txtFiles.map(file => {
-      const content = fs.readFileSync(path.join(folderPath, file), 'utf8');
-      return {
-        name: file,
-        content: content,
-        size: content.length
-      };
-    });
+    preview.innerHTML = `<pre style="white-space: pre-wrap;">${previewText}</pre>`;
     
-    res.json({ success: true, files: results });
+    // Simpan di localStorage
+    localStorage.setItem(`novel_${filename}`, content);
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      error: 'Folder tidak ditemukan atau tidak dapat diakses' 
-    });
+    console.error(`Gagal memuat ${filename}:`, error);
   }
-});
+}
 
-app.listen(3000, () => console.log('Server running on port 3000'));
+// Fungsi untuk membaca novel lengkap
+async function loadNovelContent(url, filename) {
+  let content = localStorage.getItem(`novel_${filename}`);
   
+  if (!content) {
+    // Jika belum ada di cache, fetch dari GitHub
+    const response = await fetch(url);
+    content = await response.text();
+    localStorage.setItem(`novel_${filename}`, content);
+  }
+  
+  // Buka di tab/window baru
+  const newWindow = window.open('', '_blank');
+  newWindow.document.write(`
+    <html>
+    <head>
+      <title>${filename}</title>
+      <style>
+        body { font-family: Arial; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; }
+        pre { white-space: pre-wrap; }
+        .controls { position: fixed; top: 10px; right: 10px; background: white; padding: 10px; border: 1px solid #ccc; }
+      </style>
+    </head>
+    <body>
+      <div class="controls">
+        <button onclick="window.print()">🖨️ Print</button>
+        <button onclick="window.close()">✖️ Tutup</button>
+      </div>
+      <h1>${filename.replace('.txt', '')}</h1>
+      <pre>${content}</pre>
+    </body>
+    </html>
+  `);
+}
+
+// Jalankan saat halaman dimuat
+loadGitHubNovels();
 </script>
 </body>
 </html>
