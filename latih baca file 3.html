@@ -4,6 +4,58 @@
 <div id="txt-files-container"></div>
 
 <script>
+
+async function getGitHubTxtFiles(username, repo, folderPath = 'lasus023-jpg, r34d, novel') {
+  try {
+    // API untuk mendapatkan konten folder
+    const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/${folderPath}`;
+    
+    const response = await fetch(apiUrl);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const contents = await response.json();
+    
+    // Filter hanya file .txt
+    const txtFiles = contents.filter(item => 
+      item.type === 'file' && item.name.endsWith('.txt')
+    );
+    
+    console.log(`Ditemukan ${txtFiles.length} file .txt`);
+    
+    // Baca isi setiap file .txt
+    const fileContents = [];
+    
+    for (const file of txtFiles) {
+      try {
+        const fileResponse = await fetch(file.download_url);
+        if (fileResponse.ok) {
+          const content = await fileResponse.text();
+          fileContents.push({
+            name: file.name,
+            content: content,
+            size: content.length,
+            url: file.html_url,
+            downloadUrl: file.download_url
+          });
+        }
+      } catch (err) {
+        console.error(`Gagal membaca ${file.name}:`, err);
+      }
+    }
+    
+    return fileContents;
+    
+  } catch (error) {
+    console.error('Error accessing GitHub:', error);
+    return [];
+  }
+}
+
+
+  // old function 
 async function loadTxtFiles(folder = 'novel') {
   try {
     const response = await fetch(`http://localhost:3000/api/txt-files/${folder}`);
