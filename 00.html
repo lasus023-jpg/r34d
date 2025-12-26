@@ -21,24 +21,56 @@ const CONFIG = {
   folders: ['novel', 'cerpen', 'puisi', 'spam'] // Semua folder yang ingin dibaca
 };
 
-// Fungsi utama untuk membaca dari semua folder
-async function getAllTxtFiles() {
-  const allFiles = [];
-  
-  for (const folder of CONFIG.folders) {
-    try {
-      const files = await getFolderFiles(folder);
-      allFiles.push(...files.map(file => ({
-        ...file,
-        folder: folder
-      })));
-    } catch (error) {
-      console.warn(`Gagal membaca folder ${folder}:`, error);
+// Mencari semua file .txt di seluruh repository
+async function findAllTxtFilesInRepo(username, repo) {
+  try {
+    // GitHub API untuk search code
+    const searchUrl = `https://api.github.com/search/code?q=repo:${username}/${repo}+extension:txt`;
+    
+    const response = await fetch(searchUrl);
+    const data = await response.json();
+    
+    const files = [];
+    
+    // Untuk setiap file yang ditemukan
+    for (const item of data.items) {
+      const fileUrl = `https://raw.githubusercontent.com/${username}/${repo}/main/${item.path}`;
+      const content = await fetch(fileUrl).then(r => r.text());
+      
+      // Ekstrak folder dari path
+      const pathParts = item.path.split('/');
+      const folder = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : 'root';
+      
+      files.push({
+        name: item.name,
+        fullPath: item.path,
+        folder: folder,
+        content: content,
+        size: content.length,
+        url: item.html_url
+      });
     }
+    
+    return files;
+  } catch (error) {
+    console.error('Error searching repo:', error);
+    return [];
   }
-  
-  return allFiles;
 }
+
+// Contoh penggunaan
+findAllTxtFilesInRepo('username', 'repo-name').then(files => {
+  console.log(`Ditemukan ${files.length} file .txt di seluruh repository`);
+  
+  // Kelompokkan berdasarkan folder
+  const byFolder = {};
+  files.forEach(file => {
+    if (!byFolder[file.folder]) byFolder[file.folder] = [];
+    byFolder[file.folder].push(file);
+  });
+  
+  console.log('Struktur:', byFolder);
+});
 
 // Fungsi untuk membaca satu folder
 async function getFolderFiles(folderName) {
