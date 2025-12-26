@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h1>📚 Koleksi Novel dari Beberapa Folder</h1>
+<select id="folderSelect">
+  <option value="">Semua Folder</option>
+  <option value="novel">Folder Novel</option>
+  <option value="novel2">Folder Novel 2</option>
+  <option value="cerpen">Folder Cerpen</option>
+</select>
+<div id="novel-container"></div>
+
+<script>
+const CONFIG = {
+  username: 'lasus023-jpg',
+  repo: 'r34d',
+  folders: ['novel', 'cerpen', 'puisi'] // Semua folder yang ingin dibaca
+};
+
+// Fungsi utama untuk membaca dari semua folder
+async function getAllTxtFiles() {
+  const allFiles = [];
+  
+  for (const folder of CONFIG.folders) {
+    try {
+      const files = await getFolderFiles(folder);
+      allFiles.push(...files.map(file => ({
+        ...file,
+        folder: folder
+      })));
+    } catch (error) {
+      console.warn(`Gagal membaca folder ${folder}:`, error);
+    }
+  }
+  
+  return allFiles;
+}
+
+// Fungsi untuk membaca satu folder
+async function getFolderFiles(folderName) {
+  const apiUrl = `https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/contents/${folderName}`;
+  const response = await fetch(apiUrl);
+  
+  if (!response.ok) return [];
+  
+  const contents = await response.json();
+  const txtFiles = contents.filter(item => 
+    item.type === 'file' && item.name.toLowerCase().endsWith('.txt')
+  );
+  
+  // Baca isi setiap file
+  const results = [];
+  for (const file of txtFiles) {
+    const content = await fetch(file.download_url).then(r => r.text());
+    results.push({
+      name: file.name,
+      content: content,
+      downloadUrl: file.download_url,
+      githubUrl: file.html_url,
+      size: content.length,
+      folder: folderName
+    });
+  }
+  
+  return results;
+}
+
+// Tampilkan novel
+async function displayNovels(filterFolder = '') {
+  const container = document.getElementById('novel-container');
+  container.innerHTML = '<p>Memuat...</p>';
+  
+  const allNovels = await getAllTxtFiles();
+  
+  // Filter berdasarkan folder jika dipilih
+  const filteredNovels = filterFolder 
+    ? allNovels.filter(novel => novel.folder === filterFolder)
+    : allNovels;
+  
+  if (filteredNovels.length === 0) {
+    container.innerHTML = '<p>Tidak ada novel ditemukan.</p>';
+    return;
+  }
+  
+  // Kelompokkan berdasarkan folder
+  const groupedByFolder = {};
+  filteredNovels.forEach(novel => {
+    if (!groupedByFolder[novel.folder]) {
+      groupedByFolder[novel.folder] = [];
+    }
+    groupedByFolder[novel.folder].push(novel);
+  });
+  
+  // Render
+  let html = '';
+  for (const [folder, novels] of Object.entries(groupedByFolder)) {
+    html += `
+      <div class="folder-section">
+        <h2>📁 ${folder} (${novels.length} file)</h2>
+        <div class="folder-files">
+    `;
+    
+    novels.forEach(novel => {
+      html += `
+        <div class="novel-card">
+          <h3>${novel.name.replace('.txt', '')}</h3>
+          <p><small>Folder: ${novel.folder} | Ukuran: ${novel.size} karakter</small></p>
+          <div class="preview">${novel.content.substring(0, 100)}...</div>
+          <button onclick="readNovel('${novel.name}', '${novel.folder}')">
+            Baca Lengkap
+          </button>
+          <a href="${novel.githubUrl}" target="_blank">GitHub</a>
+        </div>
+      `;
+    });
+    
+    html += `</div></div>`;
+  }
+  
+  container.innerHTML = html;
+}
+
+// Fungsi untuk membaca novel lengkap
+function readNovel(filename, folder) {
+  const key = `novel_${folder}_${filename}`;
+  const content = localStorage.getItem(key);
+  
+  if (content) {
+    openNovelWindow(filename, content);
+  } else {
+    // Jika belum ada di cache, fetch dulu
+    const url = `https://raw.githubusercontent.com/${CONFIG.username}/${CONFIG.repo}/main/${folder}/${filename}`;
+    fetch(url)
+      .then(r => r.text())
+      .then(text => {
+        localStorage.setItem(key, text);
+        openNovelWindow(filename, text);
+      });
+  }
+}
+
+function openNovelWindow(filename, content) {
+  const newWindow = window.open();
+  newWindow.document.write(`
+    <html><head><title>${filename}</title></head>
+    <body style="padding: 20px;">
+      <h1>${filename}</h1>
+      <pre style="white-space: pre-wrap;">${content}</pre>
+    </body></html>
+  `);
+}
+
+// Setup dropdown filter
+document.getElementById('folderSelect').addEventListener('change', function(e) {
+  displayNovels(e.target.value || '');
+});
+
+// Jalankan saat halaman dimuat
+displayNovels();
+
+// Tambahkan CSS
+const style = document.createElement('style');
+style.textContent = `
+  .folder-section { 
+    margin: 30px 0; 
+    padding: 20px; 
+    background: #f9f9f9; 
+    border-radius: 10px;
+  }
+  .folder-files {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+  }
+  .novel-card {
+    border: 1px solid #ddd;
+    padding: 15px;
+    border-radius: 8px;
+    background: white;
+  }
+  .preview {
+    font-size: 14px;
+    color: #666;
+    margin: 10px 0;
+    padding: 10px;
+    background: #f5f5f5;
+    border-radius: 5px;
+  }
+  select {
+    padding: 8px 15px;
+    font-size: 16px;
+    margin: 10px 0;
+  }
+`;
+document.head.appendChild(style);
+</script>
+</body>
+  </html>
