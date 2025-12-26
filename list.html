@@ -38,7 +38,7 @@
             border-bottom: 2px solid var(--border-color); 
             margin-bottom: 20px; 
             padding-bottom: 10px;
-            position: fixed;
+            
         }
 
         #controls { 
@@ -77,6 +77,15 @@
         @media (max-width: 600px) {
             #content { padding: 20px; font-size: 1rem; }
         }
+         div.fixed {
+  position: fixed;
+  top: 0;
+  padding: 5px;
+  background-color: #cae8ca;
+  border: 2px solid #4CAF50;
+
+  
+         }
     </style>
     
     <link href="https://fonts.googleapis.com/css2?family=Merriweather&family=Inter&family=Roboto+Mono&display=swap" rel="stylesheet">
@@ -96,7 +105,7 @@
         <option value="">-- Pilih Bab --</option>
     </select>
     
-    <div>
+    <div class="fixed">
         <button onclick="changeChapter(-1)">Prev</button>
         <button onclick="changeChapter(1)">Next</button>
         <button class="btn-theme" onclick="toggleDarkMode()" title="Ganti Tema">©</button>
@@ -205,6 +214,7 @@
 
 </body>
   </html>
+
 
 
 
